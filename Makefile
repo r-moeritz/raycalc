@@ -6,7 +6,7 @@ OBJ := $(OBJDIR)/raycalc
 SRC := $(wildcard $(SRCDIR)/*.c)
 
 # Flags
-CFLAGS = -Wall -Wextra -std=c99 -I$(INCDIR) -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -DPLATFORM_DESKTOP -o $@
+CFLAGS = -Wall -std=c99 -I$(INCDIR) -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -DPLATFORM_DESKTOP -o $@
 
 # Commands
 CC= gcc

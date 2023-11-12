@@ -1,37 +1,40 @@
 #define RAYGUI_IMPLEMENTATION
 
 #include "include/raygui.h"
+#include "include/stack.h"
+#include <stdio.h>
+#include <string.h>
+
+typedef struct CalculatorStruct {
+    char* displayBuffer;
+    size_t displayBufferSize;
+    Stack* stack;
+    double* memory;
+} Calculator;
+
+static void InitCalculator(Calculator* calc, Stack* s, char* buf, size_t bufSiz);
 
 //----------------------------------------------------------------------------------
 // Controls Functions Declaration
 //----------------------------------------------------------------------------------
 
-static void Button0();
-static void Button1();
-static void Button2();
-static void Button3();
-static void Button4();
-static void Button5();
-static void Button6();
-static void Button7();
-static void Button8();
-static void Button9();
-static void ButtonPoint();
-static void ButtonSign();
-static void ButtonEnter();
+static void OnDigitButtonPressed(Calculator* calc, int digit);
+static void OnPointButtonPressed(Calculator* calc);
+static void OnSignButtonPressed(Calculator* calc);
+static void OnEnterButtonPressed(Calculator* calc);
 
-static void ButtonClear();
-static void ButtonClearAll();
+static void OnClearButtonPressed(Calculator* calc);
+static void OnClearAllButtonPressed(Calculator* calc);
 
-static void ButtonMemSet();
-static void ButtonMemDel();
-static void ButtonMemRecall();
+static void OnMemSetButtonPressed(Calculator* calc);
+static void OnMemDelButtonPressed(Calculator* calc);
+static void OnMemRecallButtonPressed(Calculator* calc);
 
-static void ButtonAdd();
-static void ButtonSub();
-static void ButtonMul();
-static void ButtonDiv();
-static void ButtonSqrt();
+static void OnAddButtonPressed(Calculator* calc);
+static void OnSubtractButtonPressed(Calculator* calc);
+static void OnMultiplyButtonPressed(Calculator* calc);
+static void OnDivideButtonPressed(Calculator* calc);
+static void OnSqrtButtonPressed(Calculator* calc);
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -42,19 +45,18 @@ int main()
     //---------------------------------------------------------------------------------------
     int screenWidth = 235;
     int screenHeight = 335;
+    char displayBuffer[32] = "";
+    bool isDisplayInEditMode = false;
+    Stack s;
+    Calculator calc;
+
+    InitCalculator(&calc, &s, displayBuffer, sizeof(displayBuffer));
 
     InitWindow(screenWidth, screenHeight, "raycalc");
-
-    // raycalc: controls initialization
-    //----------------------------------------------------------------------------------
-    bool TextBoxScreenEditMode = false;
-    char TextBoxScreenText[128] = "0.0000";
-    //----------------------------------------------------------------------------------
-
     SetTargetFPS(60);
     //--------------------------------------------------------------------------------------
 
-    // Main game loop
+    // Main loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
         // Update
@@ -70,32 +72,32 @@ int main()
 
         // raygui: controls drawing
         //----------------------------------------------------------------------------------
-        if (GuiTextBox((Rectangle){ 24, 24, 184, 48 }, TextBoxScreenText, 128, TextBoxScreenEditMode)) {
-          TextBoxScreenEditMode = !TextBoxScreenEditMode;
+        if (GuiTextBox((Rectangle){ 24, 24, 184, 48 }, displayBuffer, 128, isDisplayInEditMode)) {
+          isDisplayInEditMode = !isDisplayInEditMode;
         }
-        if (GuiButton((Rectangle){ 24, 80, 40, 32 }, "7")) Button7();
-        if (GuiButton((Rectangle){ 72, 80, 40, 32 }, "8")) Button8();
-        if (GuiButton((Rectangle){ 120, 80, 40, 32 }, "9")) Button9();
-        if (GuiButton((Rectangle){ 168, 80, 40, 32 }, "C")) ButtonClear();
-        if (GuiButton((Rectangle){ 24, 120, 40, 32 }, "4")) Button4();
-        if (GuiButton((Rectangle){ 72, 120, 40, 32 }, "5")) Button5();
-        if (GuiButton((Rectangle){ 120, 120, 40, 32 }, "6")) Button6();
-        if (GuiButton((Rectangle){ 168, 120, 40, 32 }, "AC")) ButtonClearAll();
-        if (GuiButton((Rectangle){ 24, 160, 40, 32 }, "1")) Button1();
-        if (GuiButton((Rectangle){ 72, 160, 40, 32 }, "2")) Button2();
-        if (GuiButton((Rectangle){ 120, 160, 40, 32 }, "3")) Button3();
-        if (GuiButton((Rectangle){ 168, 160, 40, 32 }, "M+")) ButtonMemSet();
-        if (GuiButton((Rectangle){ 24, 240, 40, 32 }, "+")) ButtonAdd();
-        if (GuiButton((Rectangle){ 72, 240, 40, 32 }, "-")) ButtonSub();
-        if (GuiButton((Rectangle){ 120, 280, 88, 32 }, "ENTER")) ButtonEnter();
-        if (GuiButton((Rectangle){ 168, 240, 40, 32 }, "MR")) ButtonMemRecall();
-        if (GuiButton((Rectangle){ 168, 200, 40, 32 }, "M-")) ButtonMemDel();
-        if (GuiButton((Rectangle){ 24, 280, 40, 32 }, "x")) ButtonMul();
-        if (GuiButton((Rectangle){ 72, 280, 40, 32 }, "/")) ButtonDiv();
-        if (GuiButton((Rectangle){ 24, 200, 40, 32 }, "0")) Button0();
-        if (GuiButton((Rectangle){ 72, 200, 40, 32 }, ".")) ButtonPoint();
-        if (GuiButton((Rectangle){ 120, 240, 40, 32 }, "sqrt")) ButtonSqrt();
-        if (GuiButton((Rectangle){ 120, 200, 40, 32 }, "+/-")) ButtonSign();
+        if (GuiButton((Rectangle){ 24, 80, 40, 32 }, "7")) OnDigitButtonPressed(&calc, 7);
+        if (GuiButton((Rectangle){ 72, 80, 40, 32 }, "8")) OnDigitButtonPressed(&calc, 8);
+        if (GuiButton((Rectangle){ 120, 80, 40, 32 }, "9")) OnDigitButtonPressed(&calc, 9);
+        if (GuiButton((Rectangle){ 168, 80, 40, 32 }, "C")) OnClearButtonPressed(&calc);
+        if (GuiButton((Rectangle){ 24, 120, 40, 32 }, "4")) OnDigitButtonPressed(&calc, 4);
+        if (GuiButton((Rectangle){ 72, 120, 40, 32 }, "5")) OnDigitButtonPressed(&calc, 5);
+        if (GuiButton((Rectangle){ 120, 120, 40, 32 }, "6")) OnDigitButtonPressed(&calc, 6);
+        if (GuiButton((Rectangle){ 168, 120, 40, 32 }, "AC")) OnClearAllButtonPressed(&calc);
+        if (GuiButton((Rectangle){ 24, 160, 40, 32 }, "1")) OnDigitButtonPressed(&calc, 1);
+        if (GuiButton((Rectangle){ 72, 160, 40, 32 }, "2")) OnDigitButtonPressed(&calc, 2);
+        if (GuiButton((Rectangle){ 120, 160, 40, 32 }, "3")) OnDigitButtonPressed(&calc, 3);
+        if (GuiButton((Rectangle){ 168, 160, 40, 32 }, "M+")) OnMemSetButtonPressed(&calc);
+        if (GuiButton((Rectangle){ 24, 240, 40, 32 }, "+")) OnAddButtonPressed(&calc);
+        if (GuiButton((Rectangle){ 72, 240, 40, 32 }, "-")) OnSubtractButtonPressed(&calc);
+        if (GuiButton((Rectangle){ 120, 280, 88, 32 }, "ENTER")) OnEnterButtonPressed(&calc);
+        if (GuiButton((Rectangle){ 168, 240, 40, 32 }, "MR")) OnMemRecallButtonPressed(&calc);
+        if (GuiButton((Rectangle){ 168, 200, 40, 32 }, "M-")) OnMemDelButtonPressed(&calc);
+        if (GuiButton((Rectangle){ 24, 280, 40, 32 }, "x")) OnMultiplyButtonPressed(&calc);
+        if (GuiButton((Rectangle){ 72, 280, 40, 32 }, "/")) OnDivideButtonPressed(&calc);
+        if (GuiButton((Rectangle){ 24, 200, 40, 32 }, "0")) OnDigitButtonPressed(&calc, 0);
+        if (GuiButton((Rectangle){ 72, 200, 40, 32 }, ".")) OnPointButtonPressed(&calc);
+        if (GuiButton((Rectangle){ 120, 240, 40, 32 }, "sqrt")) OnSqrtButtonPressed(&calc);
+        if (GuiButton((Rectangle){ 120, 200, 40, 32 }, "+/-")) OnSignButtonPressed(&calc);
         //----------------------------------------------------------------------------------
 
         EndDrawing();
@@ -110,120 +112,95 @@ int main()
     return 0;
 }
 
+static void InitCalculator(Calculator* calc, Stack* s, char* buf, size_t bufSiz)
+{
+    calc->stack = s;
+    calc->displayBuffer = buf;
+    calc->displayBufferSize = bufSiz;
+    calc->memory = NULL;
+
+    // TODO: Push 0 onto stack & update display buffer.
+}
+
 //------------------------------------------------------------------------------------
 // Controls Functions Definitions (local)
 //------------------------------------------------------------------------------------
-static void Button0()
+static void OnDigitButtonPressed(Calculator* calc, int digit)
+{
+    if (strlen(calc->displayBuffer) == calc->displayBufferSize-1)
+    {
+        return;
+    }
+
+    // TODO: Special case for 0.
+
+    char str[2];
+    snprintf(str, sizeof(str), "%d", digit);
+
+    strncat(calc->displayBuffer, str, 1);
+}
+
+static void OnEnterButtonPressed(Calculator* calc)
 {
     // TODO: Implement control logic
 }
 
-static void Button1()
+static void OnPointButtonPressed(Calculator* calc)
 {
     // TODO: Implement control logic
 }
 
-static void Button2()
+static void OnSignButtonPressed(Calculator* calc)
 {
     // TODO: Implement control logic
 }
 
-static void Button3()
+static void OnClearButtonPressed(Calculator* calc)
 {
     // TODO: Implement control logic
 }
 
-static void Button4()
+static void OnClearAllButtonPressed(Calculator* calc)
 {
     // TODO: Implement control logic
 }
 
-static void Button5()
+static void OnMemSetButtonPressed(Calculator* calc)
 {
     // TODO: Implement control logic
 }
 
-static void Button6()
+static void OnMemRecallButtonPressed(Calculator* calc)
 {
     // TODO: Implement control logic
 }
 
-static void Button7()
+static void OnMemDelButtonPressed(Calculator* calc)
 {
     // TODO: Implement control logic
 }
 
-static void Button8()
+static void OnAddButtonPressed(Calculator* calc)
 {
     // TODO: Implement control logic
 }
 
-static void Button9()
+static void OnSubtractButtonPressed(Calculator* calc)
 {
     // TODO: Implement control logic
 }
 
-static void ButtonEnter()
+static void OnMultiplyButtonPressed(Calculator* calc)
 {
     // TODO: Implement control logic
 }
 
-static void ButtonPoint()
+static void OnDivideButtonPressed(Calculator* calc)
 {
     // TODO: Implement control logic
 }
 
-static void ButtonSign()
-{
-    // TODO: Implement control logic
-}
-
-static void ButtonClear()
-{
-    // TODO: Implement control logic
-}
-
-static void ButtonClearAll()
-{
-    // TODO: Implement control logic
-}
-
-static void ButtonMemSet()
-{
-    // TODO: Implement control logic
-}
-
-static void ButtonMemRecall()
-{
-    // TODO: Implement control logic
-}
-
-static void ButtonMemDel()
-{
-    // TODO: Implement control logic
-}
-
-static void ButtonAdd()
-{
-    // TODO: Implement control logic
-}
-
-static void ButtonSub()
-{
-    // TODO: Implement control logic
-}
-
-static void ButtonMul()
-{
-    // TODO: Implement control logic
-}
-
-static void ButtonDiv()
-{
-    // TODO: Implement control logic
-}
-
-static void ButtonSqrt()
+static void OnSqrtButtonPressed(Calculator* calc)
 {
     // TODO: Implement control logic
 }
