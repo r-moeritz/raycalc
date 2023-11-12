@@ -8,6 +8,8 @@
 typedef struct CalculatorStruct {
     char* displayBuffer;
     size_t displayBufferSize;
+    double displayValue;
+    bool resetDisplay;
     Stack* stack;
     double* memory;
 } Calculator;
@@ -117,9 +119,10 @@ static void InitCalculator(Calculator* calc, Stack* s, char* buf, size_t bufSiz)
     calc->stack = s;
     calc->displayBuffer = buf;
     calc->displayBufferSize = bufSiz;
+    calc->displayValue = 0;
     calc->memory = NULL;
 
-    // TODO: Push 0 onto stack & update display buffer.
+    OnDigitButtonPressed(calc, 0);
 }
 
 //------------------------------------------------------------------------------------
@@ -129,20 +132,50 @@ static void OnDigitButtonPressed(Calculator* calc, int digit)
 {
     if (strlen(calc->displayBuffer) == calc->displayBufferSize-1)
     {
+        // Display buffer is full
         return;
     }
 
-    // TODO: Special case for 0.
+    // Special case for zero
+    if (strcmp(calc->displayBuffer, "0") == 0)
+    {
+        if (digit == 0)
+        {
+            // Don't append more zeroes to zero
+            return;
+        }
+        else
+        {
+            calc->resetDisplay = true;
+        }
+    }
 
     char str[2];
     snprintf(str, sizeof(str), "%d", digit);
 
-    strncat(calc->displayBuffer, str, 1);
+    if (calc->resetDisplay)
+    {
+        // Overwrite dislay buffer
+        strncpy(calc->displayBuffer, str, 2);
+        calc->displayValue = digit;
+        calc->resetDisplay = false;
+    }
+    else
+    {
+        // Append to display buffer
+        strncat(calc->displayBuffer, str, 1);
+        calc->displayValue = strtod(calc->displayBuffer, NULL);
+    }
 }
 
 static void OnEnterButtonPressed(Calculator* calc)
 {
-    // TODO: Implement control logic
+    double* n = malloc(sizeof(double));
+    *n = calc->displayValue;
+
+    stack_push(calc->stack, n);
+
+    calc->resetDisplay = true;
 }
 
 static void OnPointButtonPressed(Calculator* calc)
