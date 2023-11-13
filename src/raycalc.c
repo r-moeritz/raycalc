@@ -215,7 +215,26 @@ static void OnMemDelButtonPressed(Calculator* calc)
 
 static void OnAddButtonPressed(Calculator* calc)
 {
-    // TODO: Implement control logic
+    double sum = calc->displayValue;
+
+    if (!stack_size(calc->stack)) return;
+
+    double* n;
+    while (!stack_pop(calc->stack, (void**) &n))
+    {
+        sum += *n;
+        free(n);
+    }
+
+    n = malloc(sizeof(double));
+    if (!n) return;
+    *n = sum;
+    stack_push(calc->stack, n);
+
+    // Update display buffer
+    calc->displayValue = sum;
+    snprintf(calc->displayBuffer, calc->displayBufferSize, "%f", sum);
+    calc->resetDisplay = true;
 }
 
 static void OnSubtractButtonPressed(Calculator* calc)
