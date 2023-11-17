@@ -2,23 +2,7 @@
 
 #include "include/raygui.h"
 #include "include/calc.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdbool.h>
-
-typedef struct CalculatorGuiStruct {
-    char* display;
-    size_t display_size;
-    double value;
-    bool clear;
-} CalculatorGui;
-
-static CalculatorGui* calculatorgui_new(size_t display_size);
-static void calculatorgui_set(CalculatorGui* gui, double value);
-static void calculatorgui_append(CalculatorGui* gui, char digit);
-static bool calculatorgui_full(CalculatorGui* gui);
-static void calculatorgui_toggle_clear(CalculatorGui* gui);
+#include "include/calcgui.h"
 
 //----------------------------------------------------------------------------------
 // Controls Functions Declaration
@@ -45,8 +29,7 @@ static void OnSqrtButtonPressed(Calculator* calc);
 //------------------------------------------------------------------------------------
 // Program main entry point
 //------------------------------------------------------------------------------------
-int main()
-{
+int main() {
     // Initialization
     //---------------------------------------------------------------------------------------
     int screenWidth = 235;
@@ -57,7 +40,7 @@ int main()
 
     CalculatorGui* gui = calculatorgui_new(32);
     if (!gui) {
-        free(calc);
+        calculator_destroy(calc);
         return 1;
     }
 
@@ -68,11 +51,6 @@ int main()
     // Main loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
-        // Update
-        //----------------------------------------------------------------------------------
-        // TODO: Implement required update logic
-        //----------------------------------------------------------------------------------
-
         // Draw
         //----------------------------------------------------------------------------------
         BeginDrawing();
@@ -171,55 +149,45 @@ int main()
 //------------------------------------------------------------------------------------
 // Controls Functions Definitions (local)
 //------------------------------------------------------------------------------------
-static void OnDigitButtonPressed(CalculatorGui* gui, char digit)
-{
+static void OnDigitButtonPressed(CalculatorGui* gui, char digit) {
     calculatorgui_append(gui, digit);
 }
 
-static void OnEnterButtonPressed(CalculatorGui* gui, Calculator* calc)
-{
+static void OnEnterButtonPressed(CalculatorGui* gui, Calculator* calc) {
     calculator_set_input(calc, gui->value);
 
     calculatorgui_toggle_clear(gui);
 }
 
-static void OnPointButtonPressed(Calculator* calc)
-{
+static void OnPointButtonPressed(Calculator* calc) {
     // TODO: Implement control logic
 }
 
-static void OnSignButtonPressed(Calculator* calc)
-{
+static void OnSignButtonPressed(Calculator* calc) {
     // TODO: Implement control logic
 }
 
-static void OnClearButtonPressed(Calculator* calc)
-{
+static void OnClearButtonPressed(Calculator* calc) {
     // TODO: Implement control logic
 }
 
-static void OnClearAllButtonPressed(Calculator* calc)
-{
+static void OnClearAllButtonPressed(Calculator* calc) {
     // TODO: Implement control logic
 }
 
-static void OnMemSetButtonPressed(Calculator* calc)
-{
+static void OnMemSetButtonPressed(Calculator* calc) {
     // TODO: Implement control logic
 }
 
-static void OnMemRecallButtonPressed(Calculator* calc)
-{
+static void OnMemRecallButtonPressed(Calculator* calc) {
     // TODO: Implement control logic
 }
 
-static void OnMemDelButtonPressed(Calculator* calc)
-{
+static void OnMemDelButtonPressed(Calculator* calc) {
     // TODO: Implement control logic
 }
 
-static void OnAddButtonPressed(CalculatorGui* gui, Calculator* calc)
-{
+static void OnAddButtonPressed(CalculatorGui* gui, Calculator* calc) {
     calculator_set_input(calc, gui->value);
 
     CalculatorResult res;
@@ -233,84 +201,18 @@ static void OnAddButtonPressed(CalculatorGui* gui, Calculator* calc)
     calculatorgui_set(gui, res.value);
 }
 
-static void OnSubtractButtonPressed(Calculator* calc)
-{
+static void OnSubtractButtonPressed(Calculator* calc) {
     // TODO: Implement control logic
 }
 
-static void OnMultiplyButtonPressed(Calculator* calc)
-{
+static void OnMultiplyButtonPressed(Calculator* calc) {
     // TODO: Implement control logic
 }
 
-static void OnDivideButtonPressed(Calculator* calc)
-{
+static void OnDivideButtonPressed(Calculator* calc) {
     // TODO: Implement control logic
 }
 
-static void OnSqrtButtonPressed(Calculator* calc)
-{
+static void OnSqrtButtonPressed(Calculator* calc) {
     // TODO: Implement control logic
-}
-
-static CalculatorGui* calculatorgui_new(size_t display_size) {
-    if (!display_size) return NULL;
-
-    CalculatorGui* gui = malloc(sizeof(CalculatorGui));
-    if (!gui) return NULL;
-
-
-    gui->display = calloc(display_size, sizeof(char));
-    if (!gui->display) {
-        free(gui);
-        return NULL;
-    }
-
-    gui->display_size = display_size;
-
-    calculatorgui_set(gui, 0);
-
-    return gui;
-}
-
-static void calculatorgui_set(CalculatorGui* gui, double value) {
-    if (!gui) return;
-
-    gui->value = value;
-    snprintf(gui->display, gui->display_size, "%f", value);
-}
-
-static void calculatorgui_append(CalculatorGui* gui, char digit) {
-    if (!gui) return;
-
-    if (gui->value == 0) {
-        // Special case for zero
-        if (digit == gui->value) return;
-
-        calculatorgui_set(gui, digit);
-    }
-    else if (gui->clear) {
-        calculatorgui_set(gui, digit);
-        calculatorgui_toggle_clear(gui);
-    }
-    else if (calculatorgui_full(gui)) {
-        return;
-    }
-    else {
-        snprintf(gui->display, gui->display_size, "%d%f",
-                 (int) gui->value, (double) digit);
-        gui->value = strtod(gui->display, NULL);
-    }
-}
-
-static void calculatorgui_toggle_clear(CalculatorGui* gui) {
-    if (!gui) return;
-
-    gui->clear = !gui->clear;
-}
-
-static bool calculatorgui_full(CalculatorGui* gui) {
-    if (!gui) return false;
-
-    return strlen(gui->display) == gui->display_size - 1;
 }
