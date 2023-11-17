@@ -1,29 +1,33 @@
 #define RAYGUI_IMPLEMENTATION
 
 #include "include/raygui.h"
-#include "include/stack.h"
+#include "include/calc.h"
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
-typedef struct CalculatorStruct {
-    char* displayBuffer;
-    size_t displayBufferSize;
-    double displayValue;
-    bool resetDisplay;
-    Stack* stack;
-    double* memory;
-} Calculator;
+typedef struct CalculatorGuiStruct {
+    char* display;
+    size_t display_size;
+    double value;
+    bool clear;
+} CalculatorGui;
 
-static void InitCalculator(Calculator* calc, Stack* s, char* buf, size_t bufSiz);
+static CalculatorGui* calculatorgui_new(size_t display_size);
+static void calculatorgui_set(CalculatorGui* gui, double value);
+static void calculatorgui_append(CalculatorGui* gui, char digit);
+static bool calculatorgui_full(CalculatorGui* gui);
+static void calculatorgui_toggle_clear(CalculatorGui* gui);
 
 //----------------------------------------------------------------------------------
 // Controls Functions Declaration
 //----------------------------------------------------------------------------------
 
-static void OnDigitButtonPressed(Calculator* calc, int digit);
+static void OnDigitButtonPressed(CalculatorGui* gui, char digit);
 static void OnPointButtonPressed(Calculator* calc);
 static void OnSignButtonPressed(Calculator* calc);
-static void OnEnterButtonPressed(Calculator* calc);
+static void OnEnterButtonPressed(CalculatorGui* gui, Calculator* calc);
 
 static void OnClearButtonPressed(Calculator* calc);
 static void OnClearAllButtonPressed(Calculator* calc);
@@ -32,7 +36,7 @@ static void OnMemSetButtonPressed(Calculator* calc);
 static void OnMemDelButtonPressed(Calculator* calc);
 static void OnMemRecallButtonPressed(Calculator* calc);
 
-static void OnAddButtonPressed(Calculator* calc);
+static void OnAddButtonPressed(CalculatorGui* gui, Calculator* calc);
 static void OnSubtractButtonPressed(Calculator* calc);
 static void OnMultiplyButtonPressed(Calculator* calc);
 static void OnDivideButtonPressed(Calculator* calc);
@@ -47,12 +51,15 @@ int main()
     //---------------------------------------------------------------------------------------
     int screenWidth = 235;
     int screenHeight = 335;
-    char displayBuffer[32] = "";
     bool isDisplayInEditMode = false;
-    Stack s;
-    Calculator calc;
+    Calculator* calc = calculator_new();
+    if (!calc) return 1;
 
-    InitCalculator(&calc, &s, displayBuffer, sizeof(displayBuffer));
+    CalculatorGui* gui = calculatorgui_new(32);
+    if (!gui) {
+        free(calc);
+        return 1;
+    }
 
     InitWindow(screenWidth, screenHeight, "raycalc");
     SetTargetFPS(60);
@@ -74,32 +81,79 @@ int main()
 
         // raygui: controls drawing
         //----------------------------------------------------------------------------------
-        if (GuiTextBox((Rectangle){ 24, 24, 184, 48 }, displayBuffer, 128, isDisplayInEditMode)) {
-          isDisplayInEditMode = !isDisplayInEditMode;
+        if (GuiTextBox((Rectangle){ 24, 24, 184, 48 }, gui->display, 128, isDisplayInEditMode)) {
+            isDisplayInEditMode = !isDisplayInEditMode;
         }
-        if (GuiButton((Rectangle){ 24, 80, 40, 32 }, "7")) OnDigitButtonPressed(&calc, 7);
-        if (GuiButton((Rectangle){ 72, 80, 40, 32 }, "8")) OnDigitButtonPressed(&calc, 8);
-        if (GuiButton((Rectangle){ 120, 80, 40, 32 }, "9")) OnDigitButtonPressed(&calc, 9);
-        if (GuiButton((Rectangle){ 168, 80, 40, 32 }, "C")) OnClearButtonPressed(&calc);
-        if (GuiButton((Rectangle){ 24, 120, 40, 32 }, "4")) OnDigitButtonPressed(&calc, 4);
-        if (GuiButton((Rectangle){ 72, 120, 40, 32 }, "5")) OnDigitButtonPressed(&calc, 5);
-        if (GuiButton((Rectangle){ 120, 120, 40, 32 }, "6")) OnDigitButtonPressed(&calc, 6);
-        if (GuiButton((Rectangle){ 168, 120, 40, 32 }, "AC")) OnClearAllButtonPressed(&calc);
-        if (GuiButton((Rectangle){ 24, 160, 40, 32 }, "1")) OnDigitButtonPressed(&calc, 1);
-        if (GuiButton((Rectangle){ 72, 160, 40, 32 }, "2")) OnDigitButtonPressed(&calc, 2);
-        if (GuiButton((Rectangle){ 120, 160, 40, 32 }, "3")) OnDigitButtonPressed(&calc, 3);
-        if (GuiButton((Rectangle){ 168, 160, 40, 32 }, "M+")) OnMemSetButtonPressed(&calc);
-        if (GuiButton((Rectangle){ 24, 240, 40, 32 }, "+")) OnAddButtonPressed(&calc);
-        if (GuiButton((Rectangle){ 72, 240, 40, 32 }, "-")) OnSubtractButtonPressed(&calc);
-        if (GuiButton((Rectangle){ 120, 280, 88, 32 }, "ENTER")) OnEnterButtonPressed(&calc);
-        if (GuiButton((Rectangle){ 168, 240, 40, 32 }, "MR")) OnMemRecallButtonPressed(&calc);
-        if (GuiButton((Rectangle){ 168, 200, 40, 32 }, "M-")) OnMemDelButtonPressed(&calc);
-        if (GuiButton((Rectangle){ 24, 280, 40, 32 }, "x")) OnMultiplyButtonPressed(&calc);
-        if (GuiButton((Rectangle){ 72, 280, 40, 32 }, "/")) OnDivideButtonPressed(&calc);
-        if (GuiButton((Rectangle){ 24, 200, 40, 32 }, "0")) OnDigitButtonPressed(&calc, 0);
-        if (GuiButton((Rectangle){ 72, 200, 40, 32 }, ".")) OnPointButtonPressed(&calc);
-        if (GuiButton((Rectangle){ 120, 240, 40, 32 }, "sqrt")) OnSqrtButtonPressed(&calc);
-        if (GuiButton((Rectangle){ 120, 200, 40, 32 }, "+/-")) OnSignButtonPressed(&calc);
+
+        if (GuiButton((Rectangle){ 24, 80, 40, 32 }, "7")) {
+            OnDigitButtonPressed(gui, 7);
+        }
+
+        if (GuiButton((Rectangle){ 72, 80, 40, 32 }, "8")) {
+            OnDigitButtonPressed(gui, 8);
+        }
+
+        if (GuiButton((Rectangle){ 120, 80, 40, 32 }, "9")) {
+            OnDigitButtonPressed(gui, 9);
+        }
+
+        if (GuiButton((Rectangle){ 168, 80, 40, 32 }, "C")) OnClearButtonPressed(calc);
+
+        if (GuiButton((Rectangle){ 24, 120, 40, 32 }, "4")) {
+            OnDigitButtonPressed(gui, 4);
+        }
+
+        if (GuiButton((Rectangle){ 72, 120, 40, 32 }, "5")) {
+            OnDigitButtonPressed(gui, 5);
+        }
+
+        if (GuiButton((Rectangle){ 120, 120, 40, 32 }, "6")) {
+            OnDigitButtonPressed(gui, 6);
+        }
+
+        if (GuiButton((Rectangle){ 168, 120, 40, 32 }, "AC")) OnClearAllButtonPressed(calc);
+
+        if (GuiButton((Rectangle){ 24, 160, 40, 32 }, "1")) {
+            OnDigitButtonPressed(gui, 1);
+        }
+
+        if (GuiButton((Rectangle){ 72, 160, 40, 32 }, "2")) {
+            OnDigitButtonPressed(gui, 2);
+        }
+
+        if (GuiButton((Rectangle){ 120, 160, 40, 32 }, "3")) {
+            OnDigitButtonPressed(gui, 3);
+        }
+
+        if (GuiButton((Rectangle){ 168, 160, 40, 32 }, "M+")) OnMemSetButtonPressed(calc);
+
+        if (GuiButton((Rectangle){ 24, 240, 40, 32 }, "+")) {
+            OnAddButtonPressed(gui, calc);
+        }
+
+        if (GuiButton((Rectangle){ 72, 240, 40, 32 }, "-")) OnSubtractButtonPressed(calc);
+
+        if (GuiButton((Rectangle){ 120, 280, 88, 32 }, "ENTER")) {
+            OnEnterButtonPressed(gui, calc);
+        }
+
+        if (GuiButton((Rectangle){ 168, 240, 40, 32 }, "MR")) OnMemRecallButtonPressed(calc);
+
+        if (GuiButton((Rectangle){ 168, 200, 40, 32 }, "M-")) OnMemDelButtonPressed(calc);
+
+        if (GuiButton((Rectangle){ 24, 280, 40, 32 }, "x")) OnMultiplyButtonPressed(calc);
+
+        if (GuiButton((Rectangle){ 72, 280, 40, 32 }, "/")) OnDivideButtonPressed(calc);
+
+        if (GuiButton((Rectangle){ 24, 200, 40, 32 }, "0")) {
+            OnDigitButtonPressed(gui, 0);
+        }
+
+        if (GuiButton((Rectangle){ 72, 200, 40, 32 }, ".")) OnPointButtonPressed(calc);
+
+        if (GuiButton((Rectangle){ 120, 240, 40, 32 }, "sqrt")) OnSqrtButtonPressed(calc);
+
+        if (GuiButton((Rectangle){ 120, 200, 40, 32 }, "+/-")) OnSignButtonPressed(calc);
         //----------------------------------------------------------------------------------
 
         EndDrawing();
@@ -114,68 +168,19 @@ int main()
     return 0;
 }
 
-static void InitCalculator(Calculator* calc, Stack* s, char* buf, size_t bufSiz)
-{
-    calc->stack = s;
-    calc->displayBuffer = buf;
-    calc->displayBufferSize = bufSiz;
-    calc->displayValue = 0;
-    calc->memory = NULL;
-
-    OnDigitButtonPressed(calc, 0);
-}
-
 //------------------------------------------------------------------------------------
 // Controls Functions Definitions (local)
 //------------------------------------------------------------------------------------
-static void OnDigitButtonPressed(Calculator* calc, int digit)
+static void OnDigitButtonPressed(CalculatorGui* gui, char digit)
 {
-    if (strlen(calc->displayBuffer) == calc->displayBufferSize-1)
-    {
-        // Display buffer is full
-        return;
-    }
-
-    // Special case for zero
-    if (strcmp(calc->displayBuffer, "0") == 0)
-    {
-        if (digit == 0)
-        {
-            // Don't append more zeroes to zero
-            return;
-        }
-        else
-        {
-            calc->resetDisplay = true;
-        }
-    }
-
-    char str[2];
-    snprintf(str, sizeof(str), "%d", digit);
-
-    if (calc->resetDisplay)
-    {
-        // Overwrite dislay buffer
-        strncpy(calc->displayBuffer, str, 2);
-        calc->displayValue = digit;
-        calc->resetDisplay = false;
-    }
-    else
-    {
-        // Append to display buffer
-        strncat(calc->displayBuffer, str, 1);
-        calc->displayValue = strtod(calc->displayBuffer, NULL);
-    }
+    calculatorgui_append(gui, digit);
 }
 
-static void OnEnterButtonPressed(Calculator* calc)
+static void OnEnterButtonPressed(CalculatorGui* gui, Calculator* calc)
 {
-    double* n = malloc(sizeof(double));
-    *n = calc->displayValue;
+    calculator_set_input(calc, gui->value);
 
-    stack_push(calc->stack, n);
-
-    calc->resetDisplay = true;
+    calculatorgui_toggle_clear(gui);
 }
 
 static void OnPointButtonPressed(Calculator* calc)
@@ -213,28 +218,19 @@ static void OnMemDelButtonPressed(Calculator* calc)
     // TODO: Implement control logic
 }
 
-static void OnAddButtonPressed(Calculator* calc)
+static void OnAddButtonPressed(CalculatorGui* gui, Calculator* calc)
 {
-    double sum = calc->displayValue;
+    calculator_set_input(calc, gui->value);
 
-    if (!stack_size(calc->stack)) return;
+    CalculatorResult res;
+    calculator_execute(calc, ADDITION, &res);
 
-    double* n;
-    while (!stack_pop(calc->stack, (void**) &n))
-    {
-        sum += *n;
-        free(n);
+    if (res.error) {
+        // TODO: Display error msg
+        return;
     }
 
-    n = malloc(sizeof(double));
-    if (!n) return;
-    *n = sum;
-    stack_push(calc->stack, n);
-
-    // Update display buffer
-    calc->displayValue = sum;
-    snprintf(calc->displayBuffer, calc->displayBufferSize, "%f", sum);
-    calc->resetDisplay = true;
+    calculatorgui_set(gui, res.value);
 }
 
 static void OnSubtractButtonPressed(Calculator* calc)
@@ -255,4 +251,66 @@ static void OnDivideButtonPressed(Calculator* calc)
 static void OnSqrtButtonPressed(Calculator* calc)
 {
     // TODO: Implement control logic
+}
+
+static CalculatorGui* calculatorgui_new(size_t display_size) {
+    if (!display_size) return NULL;
+
+    CalculatorGui* gui = malloc(sizeof(CalculatorGui));
+    if (!gui) return NULL;
+
+
+    gui->display = calloc(display_size, sizeof(char));
+    if (!gui->display) {
+        free(gui);
+        return NULL;
+    }
+
+    gui->display_size = display_size;
+
+    calculatorgui_set(gui, 0);
+
+    return gui;
+}
+
+static void calculatorgui_set(CalculatorGui* gui, double value) {
+    if (!gui) return;
+
+    gui->value = value;
+    snprintf(gui->display, gui->display_size, "%f", value);
+}
+
+static void calculatorgui_append(CalculatorGui* gui, char digit) {
+    if (!gui) return;
+
+    if (gui->value == 0) {
+        // Special case for zero
+        if (digit == gui->value) return;
+
+        calculatorgui_set(gui, digit);
+    }
+    else if (gui->clear) {
+        calculatorgui_set(gui, digit);
+        calculatorgui_toggle_clear(gui);
+    }
+    else if (calculatorgui_full(gui)) {
+        return;
+    }
+    else {
+        snprintf(gui->display, gui->display_size, "%d%f",
+                 (int) gui->value, (double) digit);
+        gui->value = strtod(gui->display, NULL);
+    }
+}
+
+static void calculatorgui_toggle_clear(CalculatorGui* gui) {
+    if (!gui) return;
+
+    gui->clear = !gui->clear;
+}
+
+static bool calculatorgui_full(CalculatorGui* gui) {
+    if (!gui) return false;
+
+    return strlen(gui->display) == gui->display_size - 1;
 }
