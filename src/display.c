@@ -4,12 +4,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-typedef struct DisplayStruct {
+struct DisplayStruct {
     char* buffer;
     size_t size;
     double value;
     bool clear;
-} Display;
+};
 
 static void print(Display* dis, const char* message);
 
