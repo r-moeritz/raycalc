@@ -39,7 +39,6 @@ void display_destroy(Display* dis);
  */
 void display_set_value(Display* dis, double value);
 
-
 /**
  * @brief Get the display value
  *

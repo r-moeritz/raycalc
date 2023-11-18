@@ -26,7 +26,7 @@ static void OnAddButtonPressed(Display* dis, Calculator* calc);
 static void OnSubtractButtonPressed(Display* dis, Calculator* calc);
 static void OnMultiplyButtonPressed(Display* dis, Calculator* calc);
 static void OnDivideButtonPressed(Display* dis, Calculator* calc);
-static void OnSqrtButtonPressed(Calculator* calc);
+static void OnSqrtButtonPressed(Display* dis, Calculator* calc);
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -138,7 +138,9 @@ int main() {
 
         if (GuiButton((Rectangle){ 72, 200, 40, 32 }, ".")) OnPointButtonPressed(calc);
 
-        if (GuiButton((Rectangle){ 120, 240, 40, 32 }, "sqrt")) OnSqrtButtonPressed(calc);
+        if (GuiButton((Rectangle){ 120, 240, 40, 32 }, "sqrt")) {
+            OnSqrtButtonPressed(dis, calc);
+        }
 
         if (GuiButton((Rectangle){ 120, 200, 40, 32 }, "+/-")) OnSignButtonPressed(calc);
         //----------------------------------------------------------------------------------
@@ -213,8 +215,8 @@ static void OnDivideButtonPressed(Display* dis, Calculator* calc) {
     Calculate(dis, calc, DIVISION);
 }
 
-static void OnSqrtButtonPressed(Calculator* calc) {
-    // TODO: Implement control logic
+static void OnSqrtButtonPressed(Display* dis, Calculator* calc) {
+    Calculate(dis, calc, SQRT);
 }
 
 static void Calculate(Display* dis, Calculator* calc, CalculatorOperation op) {

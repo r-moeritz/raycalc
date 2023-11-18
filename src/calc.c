@@ -1,17 +1,25 @@
 #include "include/calc.h"
 #include "include/stack.h"
-#include <limits.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <fenv.h>
+#include <math.h>
 
 typedef double (*BinaryOperator)(double a, double b);
+typedef double (*UnaryOperator)(double a);
 
 static void execute(Calculator* calc,
                     CalculatorOperation operation);
 static void exec_binary_op(Calculator* calc,
                            BinaryOperator op);
-static void detect_overflow(BinaryOperator op, double a, double b, CalculatorResult* result);
+static void exec_unary_op(Calculator* calc,
+                          UnaryOperator op);
+static void detect_binary_overflow(BinaryOperator op,
+                                   double a,
+                                   double b,
+                                   CalculatorResult* result);
+static void detect_unary_overflow(UnaryOperator op,
+                                  double a,
+                                  CalculatorResult* result);
 static double add(double a, double b);
 static double subtract(double a, double b);
 static double multiply(double a, double b);
@@ -102,6 +110,10 @@ static void execute(Calculator* calc, CalculatorOperation operation) {
             exec_binary_op(calc, divide);
             break;
 
+        case SQRT:
+            exec_unary_op(calc, sqrt);
+            break;
+
         case CLEAR:
             stack_destroy(calc->stack);
             break;
@@ -123,7 +135,7 @@ static void exec_binary_op(Calculator* calc,
 
     while (!stack_pop(stack, (void**) &n)) {
         if (acc) {
-            detect_overflow(op, *n, *acc, &result);
+            detect_binary_overflow(op, *n, *acc, &result);
             if (result.error) {
                 calc->error = result.error;
                 return;
@@ -141,14 +153,58 @@ static void exec_binary_op(Calculator* calc,
     calc->error = ERR_OK;
 }
 
-static void detect_overflow(BinaryOperator op,
-                            double a,
-                            double b,
-                            CalculatorResult* result) {
+static void exec_unary_op(Calculator* calc, UnaryOperator op) {
+    Stack* stack = calc->stack;
+
+    if (!stack_size(stack)) {
+        calc->error = ERR_NOT_ENOUGH_INPUT;
+        return;
+    }
+
+    CalculatorResult result;
+    double* n = NULL;
+
+    stack_pop(stack, (void**) &n);
+    detect_unary_overflow(op, *n, &result);
+
+    if (result.error) {
+        calc->error = result.error;
+        free(n);
+    }
+    else {
+        *n = result.value;
+        stack_push(stack, n);
+        calc->error = ERR_OK;
+    }
+}
+
+static void detect_binary_overflow(BinaryOperator op,
+                                   double a,
+                                   double b,
+                                   CalculatorResult* result) {
     feclearexcept(FE_OVERFLOW);
     feclearexcept(FE_UNDERFLOW);
 
     result->value = op(a, b);
+
+    if (fetestexcept(FE_OVERFLOW)) {
+        result->error = ERR_OVERFLOW;
+    }
+    else if (fetestexcept(FE_UNDERFLOW)) {
+        result->error = ERR_UNDERFLOW;
+    }
+    else {
+        result->error = ERR_OK;
+    }
+}
+
+static void detect_unary_overflow(UnaryOperator op,
+                                  double a,
+                                  CalculatorResult* result) {
+    feclearexcept(FE_OVERFLOW);
+    feclearexcept(FE_UNDERFLOW);
+
+    result->value = op(a);
 
     if (fetestexcept(FE_OVERFLOW)) {
         result->error = ERR_OVERFLOW;

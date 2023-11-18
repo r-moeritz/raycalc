@@ -14,6 +14,7 @@ typedef enum CalculatorOperationEnum {
     SUBTRACTION,
     MULTIPLICATION,
     DIVISION,
+    SQRT,
     CLEAR
 } CalculatorOperation;
 
