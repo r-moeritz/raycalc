@@ -1,10 +1,21 @@
 #include "include/calc.h"
 #include "include/stack.h"
+#include <limits.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <fenv.h>
+
+typedef double (*BinaryOperator)(double a, double b);
 
 static void execute(Calculator* calc,
                     CalculatorOperation operation);
-static void addition(Calculator* calc);
+static void exec_binary_op(Calculator* calc,
+                           BinaryOperator op);
+static void detect_overflow(BinaryOperator op, double a, double b, CalculatorResult* result);
+static double add(double a, double b);
+static double subtract(double a, double b);
+static double multiply(double a, double b);
+static double divide(double a, double b);
 
 struct CalculatorStruct {
     CalculatorError error;
@@ -76,15 +87,29 @@ void calculator_execute(Calculator* calc,
 static void execute(Calculator* calc, CalculatorOperation operation) {
     switch (operation) {
         case ADDITION:
-            addition(calc);
+            exec_binary_op(calc, add);
             break;
 
-        default:
-            return;
+        case SUBTRACTION:
+            exec_binary_op(calc, subtract);
+            break;
+
+        case MULTIPLICATION:
+            exec_binary_op(calc, multiply);
+            break;
+
+        case DIVISION:
+            exec_binary_op(calc, divide);
+            break;
+
+        case CLEAR:
+            stack_destroy(calc->stack);
+            break;
     }
 }
 
-static void addition(Calculator* calc) {
+static void exec_binary_op(Calculator* calc,
+                           BinaryOperator op) {
     Stack* stack = calc->stack;
 
     if (stack_size(stack) < 2) {
@@ -92,20 +117,62 @@ static void addition(Calculator* calc) {
         return;
     }
 
-    double* sum = malloc(sizeof(double));
-    if (!sum) {
-        calc->error = ERR_OUT_OF_MEMORY;
-        return;
-    }
-
-    *sum = 0;
-    double* n;
+    CalculatorResult result;
+    double* acc = NULL;
+    double* n = NULL;
 
     while (!stack_pop(stack, (void**) &n)) {
-        *sum += *n;
-        free(n);
+        if (acc) {
+            detect_overflow(op, *n, *acc, &result);
+            if (result.error) {
+                calc->error = result.error;
+                return;
+            }
+
+            *acc = result.value;
+            free(n);
+        }
+        else {
+            acc = n;
+        }
     }
 
-    stack_push(stack, sum);
+    stack_push(stack, acc);
     calc->error = ERR_OK;
+}
+
+static void detect_overflow(BinaryOperator op,
+                            double a,
+                            double b,
+                            CalculatorResult* result) {
+    feclearexcept(FE_OVERFLOW);
+    feclearexcept(FE_UNDERFLOW);
+
+    result->value = op(a, b);
+
+    if (fetestexcept(FE_OVERFLOW)) {
+        result->error = ERR_OVERFLOW;
+    }
+    else if (fetestexcept(FE_UNDERFLOW)) {
+        result->error = ERR_UNDERFLOW;
+    }
+    else {
+        result->error = ERR_OK;
+    }
+}
+
+static double add(double a, double b) {
+    return a + b;
+}
+
+static double subtract(double a, double b) {
+    return a - b;
+}
+
+static double multiply(double a, double b) {
+    return a * b;
+}
+
+static double divide(double a, double b) {
+    return a / b;
 }

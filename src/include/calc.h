@@ -13,7 +13,8 @@ typedef enum CalculatorOperationEnum {
     ADDITION,
     SUBTRACTION,
     MULTIPLICATION,
-    DIVISION
+    DIVISION,
+    CLEAR
 } CalculatorOperation;
 
 /**
@@ -23,8 +24,8 @@ typedef enum CalculatorErrorEnum {
     ERR_OK,
     ERR_NOT_ENOUGH_INPUT,
     ERR_NO_RESULT,
-    ERR_DIVIDE_BY_ZERO,
     ERR_OVERFLOW,
+    ERR_UNDERFLOW,
     ERR_OUT_OF_MEMORY
 } CalculatorError;
 
