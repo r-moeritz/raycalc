@@ -11,7 +11,7 @@ static void Calculate(Display* dis, Calculator* calc, CalculatorOperation op);
 //----------------------------------------------------------------------------------
 
 static void OnDigitButtonPressed(Display* dis, char digit);
-static void OnPointButtonPressed(Calculator* calc);
+static void OnPointButtonPressed(Display* dis, Calculator* calc);
 static void OnSignButtonPressed(Calculator* calc);
 static void OnEnterButtonPressed(Display* dis, Calculator* calc);
 
@@ -136,7 +136,9 @@ int main() {
             OnDigitButtonPressed(dis, 0);
         }
 
-        if (GuiButton((Rectangle){ 72, 200, 40, 32 }, ".")) OnPointButtonPressed(calc);
+        if (GuiButton((Rectangle){ 72, 200, 40, 32 }, ".")) {
+            OnPointButtonPressed(dis, calc);
+        }
 
         if (GuiButton((Rectangle){ 120, 240, 40, 32 }, "sqrt")) {
             OnSqrtButtonPressed(dis, calc);
@@ -170,8 +172,8 @@ static void OnEnterButtonPressed(Display* dis, Calculator* calc) {
     display_toggle_clear(dis);
 }
 
-static void OnPointButtonPressed(Calculator* calc) {
-    // TODO: Implement control logic
+static void OnPointButtonPressed(Display* dis, Calculator* calc) {
+    display_append(dis, '.');
 }
 
 static void OnSignButtonPressed(Calculator* calc) {
